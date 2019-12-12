@@ -491,7 +491,7 @@ class Gui:
         c2.create_line(11,0,11,SCREEN_HEIGHT/4-1,width=20)
 
     def create_blip(self,x,y):
-        
+        return
 
 #
 #

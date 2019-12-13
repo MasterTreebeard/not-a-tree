@@ -129,6 +129,20 @@ class Player:
 
 ##### Determine actual collision
         return feet_x - feet_width/2 < x_pos < feet_x + feet_width/2 and feet_y - feet_height/2 < y_pos < feet_y + feet_height/2
+
+    def is_in_combat(self, x_pos, y_pos):
+        print('testing')
+        points = self.get_feet_coords()
+        feet_x = points[0]
+        feet_y = points[1]
+        rangex = 100
+        rangey = 40
+        return feet_x - rangex/2 < x_pos < feet_x + rangex/2 and feet_y - rangey/2 < y_pos < feet_y + rangey/2
+
+    def damage(self,slime):
+        print('damage')
+        print(slime)
+        canvas.delete(slime.slime)
 #
 #
 #
@@ -149,6 +163,7 @@ class Game:
         self.arch_exists = False
 ### Create Player
         self.player = Player(SCREEN_WIDTH/2,SCREEN_HEIGHT/2)
+        win.bind('<e>',self.combat)
 ### Init time counter
         self.tick = time.time()
         self.tock = time.time()
@@ -167,6 +182,13 @@ class Game:
         self.update()
         #print(self.roomcount())
 
+    def combat(self,event):
+        print('Test')
+        for each in self.room_list[self.playerloc[0]][self.playerloc[1]].slime_list:
+            if self.player.is_in_combat(canvas.coords(each.slime)[0],canvas.coords(each.slime)[1]):
+                self.player.damage(each)
+                self.room_list[self.playerloc[0]][self.playerloc[1]].slime_list.remove(each)
+    
 ### Arch Creation method - Makes arch in a random room from list of rooms
     def create_arch(self):
         archlist = []

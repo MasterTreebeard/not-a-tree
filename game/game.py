@@ -77,7 +77,7 @@ class Player:
 
     ### Update Image - Player
     def update_image(self):
-        if s.updatestate == True:
+        if s.updateState:
             if self.action_state == "move up":
                 canvas.move(self.imageID, 0, -20)
 
@@ -93,7 +93,8 @@ class Player:
             if self.action_state != self.last_state:
                 self.last_state = self.action_state
                 self.current_photo = 0
-
+            for each in g.room_list[g.playerloc[0]][g.playerloc[1]].cblist:
+                each.checker()
             self.current_photo = (self.current_photo + 1) % len(self.action_images[self.action_state])
             canvas.itemconfig(self.imageID, image=self.action_images[self.action_state][self.current_photo])
 
@@ -237,20 +238,19 @@ class Game:
 
     ### Game Updater - Vital
     def update(self):
-        if s.updatestate == True:
+        if s.updateState == True:
             ##### Edge Testing - Includes exception handling of the out of range
             try:
                 if self.player.get_feet_coords()[0] >= SCREEN_WIDTH and type(
                         self.room_list[self.playerloc[0]][self.playerloc[1] + 1]) == Room:
-                    xpos = self.player.get_feet_coords()[0]
                     ypos = self.player.get_feet_coords()[1]
+                    self.room_list[self.playerloc[0]][self.playerloc[1] + 1].cblist = []
                     self.playerloc[1] += 1
                     canvas.delete("all")
                     self.player = Player(60, ypos)
                     self.display()
                 elif self.player.get_feet_coords()[0] <= 0 and type(
                         self.room_list[self.playerloc[0]][self.playerloc[1] - 1]) == Room:
-                    xpos = self.player.get_feet_coords()[0]
                     ypos = self.player.get_feet_coords()[1]
                     self.playerloc[1] -= 1
                     canvas.delete("all")
@@ -259,7 +259,6 @@ class Game:
                 elif self.player.get_feet_coords()[1] >= SCREEN_HEIGHT and type(
                         self.room_list[self.playerloc[0] + 1][self.playerloc[1]]) == Room:
                     xpos = self.player.get_feet_coords()[0]
-                    ypos = self.player.get_feet_coords()[1]
                     self.playerloc[0] += 1
                     canvas.delete("all")
                     self.player = Player(xpos, 80)
@@ -267,7 +266,6 @@ class Game:
                 elif self.player.get_feet_coords()[1] <= 0 and type(
                         self.room_list[self.playerloc[0] - 1][self.playerloc[1]]) == Room:
                     xpos = self.player.get_feet_coords()[0]
-                    ypos = self.player.get_feet_coords()[1]
                     self.playerloc[0] -= 1
                     canvas.delete("all")
                     self.player = Player(xpos, (SCREEN_HEIGHT - 100))
@@ -278,20 +276,20 @@ class Game:
             ##### Barrel Testing - smash if entered
             for each in self.room_list[self.playerloc[0]][self.playerloc[1]].barrel_list:
                 if self.player.is_in(canvas.coords(each.barrel)[0],
-                                     canvas.coords(each.barrel)[1] + 29) and each.barrelstate == 0:
+                                     canvas.coords(each.barrel)[1] + 29) and each.barrelState == 0:
                     canvas.itemconfig(each.barrel, image=each.dec_pic[1])
-                    each.barrelstate = 1
+                    each.barrelState = 1
 
             ##### Loss Testing - if is in slime
             for each in self.room_list[self.playerloc[0]][self.playerloc[1]].slime_list:
-                if each.movestate == True:
+                if each.movestate:
                     each.move(self.player.get_feet_coords()[0], self.player.get_feet_coords()[1])
                 if self.player.is_in(canvas.coords(each.slime)[0], canvas.coords(each.slime)[1]):
                     print('You lose!')
                     brexit()
 
             ##### Win Testing - if is in arch
-            if self.room_list[self.playerloc[0]][self.playerloc[1]].arch_exists == True:
+            if self.room_list[self.playerloc[0]][self.playerloc[1]].arch_exists:
                 if self.player.is_in(canvas.coords(self.room_list[self.playerloc[0]][self.playerloc[1]].arch)[0],
                                      canvas.coords(self.room_list[self.playerloc[0]][self.playerloc[1]].arch)[1] + 96):
                     print('You win!')
@@ -312,17 +310,17 @@ class Game:
 
 ### Exit Function
 def brexit():
-    tick = time.time() - g.tock - s.totalpausetime
+    tick = time.time() - g.tock - s.totalPauseTime
     print('You survived: ', str(int(tick)), ' seconds!')
     win.destroy()
-    # scoresaver()
-    # d = hs.Displayscores()
+    scoresaver()
+    d = hs.Displayscores()
     sys.exit()
 
 
 def scoresaver():
     infile = open('high-scores.txt', 'r+')
-    tick = time.time() - g.tock - s.totalpausetime
+    tick = time.time() - g.tock - s.totalPauseTime
     lines = infile.readlines()
     newlines = []
     num = []
@@ -390,6 +388,9 @@ class Room:
         ### Init arch state
         self.arch_exists = False
 
+        ### Create CB list
+        self.cblist = []
+
     ### Main room display method - Vital
     def display(self):
         xpos = 0
@@ -411,17 +412,42 @@ class Room:
             each.display()
         for each in self.slime_list:
             each.display()
-        if self.arch_exists == True:
+        if self.arch_exists:
             self.arch = canvas.create_image(self.arch_loc[0], self.arch_loc[1], image=self.arch_image)
+            self.cblist.append(Collision(self.cbmark1[0], self.cbmark1[1], self.cbmark1[2], self.cbmark1[3]))
+            self.cblist.append(Collision(self.cbmark2[0], self.cbmark2[1], self.cbmark2[2], self.cbmark2[3]))
 
     ### Arch creator
     def make_arch(self):
         self.arch_image = tk.PhotoImage(file="sprites/background/full_arch/0.gif")
         self.arch_loc = [random.randint(160, SCREEN_WIDTH - 160), random.randint(192, SCREEN_HEIGHT - 192)]
         self.arch_exists = True
-
+        self.cbmark1 = [62 + self.arch_loc[0], 80 + self.arch_loc[0], 80 + self.arch_loc[1],
+                        192 / 2 + self.arch_loc[1]]
+        print(self.cbmark1)
+        self.cbmark2 = [-80 + self.arch_loc[0], -62 + self.arch_loc[0], 80 + self.arch_loc[1],
+                        192 / 2 + self.arch_loc[1]]
+        print(self.cbmark2)
 
 #
+class Collision:
+    def __init__(self, xpos1, xpos2, ypos1, ypos2):
+        self.xpos1 = xpos1
+        self.xpos2 = xpos2
+        self.ypos1 = ypos1
+        self.ypos2 = ypos2
+
+    def checker(self):
+        if self.xpos1 < g.player.get_feet_coords()[0] < self.xpos2 and self.ypos1 < g.player.get_feet_coords()[0] < self.ypos2:
+            if g.player.action_state == "move right":
+                canvas.move(g.player.imageID, -20, 0)
+            elif g.player.action_state == "move left":
+                canvas.move(g.player.imageID, 20, 0)
+            elif g.player.action_state == "move down":
+                canvas.move(g.player.imageID, 0, -20)
+            elif g.player.action_state == "move up":
+                canvas.move(g.player.imageID, 0, 20)
+
 
 #
 class Slime:
@@ -445,13 +471,13 @@ class Slime:
     ### Display function - Could use polishing. Slime up isn't needed
     def display(self):
         self.slime = canvas.create_image(self.imageloc[0], self.imageloc[1], image=self.slime_photos[self.slime_number])
-        if self.slimeup == False:
+        if not self.slimeup:
             self.update_image()
             self.slimeup = True
 
     ### Updater
     def update_image(self):
-        if s.updatestate == True:
+        if s.updateState:
             self.slime_number = (self.slime_number + 1) % len(self.slime_photos)
             canvas.itemconfig(self.slime, image=self.slime_photos[self.slime_number])
         win.after(100, self.update_image)
@@ -510,11 +536,11 @@ class Dec:
             for i in range(dec_dic[choice1]):
                 self.dec_pic += [tk.PhotoImage(file="sprites/background/" + choice1 + "/" + str(i) + ".gif")]
 
-        self.imageloc = [xpos, ypos]
+        self.imageLoc = [xpos, ypos]
 
     ### Displayer
     def display(self):
-        self.dec = canvas.create_image(self.imageloc[0], self.imageloc[1], image=random.choice(self.dec_pic))
+        self.dec = canvas.create_image(self.imageLoc[0], self.imageLoc[1], image=random.choice(self.dec_pic))
 
 
 #
@@ -525,11 +551,11 @@ class Barrel:
         self.dec_pic = []
         for i in range(2):
             self.dec_pic += [tk.PhotoImage(file="sprites/background/barrel/" + str(i) + ".gif")]
-        self.barrelstate = random.randint(0, 1)
-        self.imageloc = [xpos, ypos]
+        self.barrelState = random.randint(0, 1)
+        self.imageLoc = [xpos, ypos]
 
     def display(self):
-        self.barrel = canvas.create_image(self.imageloc[0], self.imageloc[1], image=self.dec_pic[self.barrelstate])
+        self.barrel = canvas.create_image(self.imageLoc[0], self.imageLoc[1], image=self.dec_pic[self.barrelState])
 
 
 #
@@ -540,17 +566,17 @@ class Candelabra:
         self.dec_pic = []
         for i in range(3):
             self.dec_pic += [tk.PhotoImage(file="sprites/background/candelabra/" + str(i) + ".gif")]
-        self.abrastate = random.randint(0, 2)
-        self.imageloc = [xpos, ypos]
+        self.abraState = random.randint(0, 2)
+        self.imageLoc = [xpos, ypos]
 
     def display(self):
-        self.candelabra = canvas.create_image(self.imageloc[0], self.imageloc[1], image=self.dec_pic[self.abrastate])
+        self.candelabra = canvas.create_image(self.imageLoc[0], self.imageLoc[1], image=self.dec_pic[self.abraState])
         self.update_image()
 
     def update_image(self):
-        if s.updatestate == True:
-            self.abrastate = (self.abrastate + 1) % len(self.dec_pic)
-            canvas.itemconfig(self.candelabra, image=self.dec_pic[self.abrastate])
+        if s.updateState:
+            self.abraState = (self.abraState + 1) % len(self.dec_pic)
+            canvas.itemconfig(self.candelabra, image=self.dec_pic[self.abraState])
         win.after(150, self.update_image)
 
 
@@ -562,17 +588,17 @@ class Candle:
         self.dec_pic = []
         for i in range(3):
             self.dec_pic += [tk.PhotoImage(file="sprites/background/candle/" + str(i) + ".gif")]
-        self.canstate = random.randint(0, 2)
-        self.imageloc = [xpos, ypos]
+        self.canState = random.randint(0, 2)
+        self.imageLoc = [xpos, ypos]
 
     def display(self):
-        self.candle = canvas.create_image(self.imageloc[0], self.imageloc[1], image=self.dec_pic[self.canstate])
+        self.candle = canvas.create_image(self.imageLoc[0], self.imageLoc[1], image=self.dec_pic[self.canState])
         self.update_image()
 
     def update_image(self):
-        if s.updatestate == True:
-            self.canstate = (self.canstate + 1) % len(self.dec_pic)
-            canvas.itemconfig(self.candle, image=self.dec_pic[self.canstate])
+        if s.updateState:
+            self.canState = (self.canState + 1) % len(self.dec_pic)
+            canvas.itemconfig(self.candle, image=self.dec_pic[self.canState])
         win.after(150, self.update_image)
 
 
@@ -601,16 +627,16 @@ win.minsize(width=SCREEN_WIDTH, height=SCREEN_HEIGHT)
 win.maxsize(width=SCREEN_WIDTH, height=SCREEN_HEIGHT * 2)
 win.title("The Dungeon Master")
 
-timelabel = tk.Label(win, text=str(0))
+timeLabel = tk.Label(win, text=str(0))
 
 
-def timeupdate():
-    if s.updatestate == True:
-        timelabel['text'] = str(int(time.time() - g.tock - s.totalpausetime))
-    win.after(100, timeupdate)
+def timeUpdate():
+    if s.updateState:
+        timeLabel['text'] = str(int(time.time() - g.tock - s.totalPauseTime))
+    win.after(100, timeUpdate)
 
 
-timelabel.grid()
+timeLabel.grid()
 ### Main Page Init
 canvas = tk.Canvas(win, width=SCREEN_WIDTH, height=SCREEN_HEIGHT)
 canvas.grid()
@@ -623,20 +649,20 @@ c2.grid()
 ### Pause - Tracks a state and applies it across the program
 class State:
     def __init__(self):
-        self.updatestate = False
-        self.totalpausetime = 0
+        self.updateState = False
+        self.totalPauseTime = 0
         self.tick = time.time()
 
     def getState(self):
-        return self.updatestate
+        return self.updateState
 
     def changeState(self):
-        if self.updatestate == True:
-            self.updatestate = False
+        if self.updateState:
+            self.updateState = False
             self.tick = time.time()
         else:
-            self.totalpausetime += time.time() - self.tick
-            self.updatestate = True
+            self.totalPauseTime += time.time() - self.tick
+            self.updateState = True
 
 
 s = State()
@@ -646,7 +672,7 @@ def pause(event):
     s.changeState()
 
 
-### Termination Command - Keybound to delete
+### Termination Command - Key bound to delete
 
 win.bind('<Escape>', pause)
 win.bind('<Delete>', brexit)
@@ -654,5 +680,5 @@ win.bind('<Delete>', brexit)
 ### Game Start
 g = Game()
 p = Gui()
-timeupdate()
+timeUpdate()
 tk.mainloop()
